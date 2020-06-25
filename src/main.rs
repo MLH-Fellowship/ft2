@@ -281,8 +281,7 @@ fn admin_check(ctx: &mut Context, msg: &Message, _: &mut Args, _: &CommandOption
 
 use warp::Filter;
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let pool: Pool = diesel::r2d2::Pool::new(diesel::r2d2::ConnectionManager::new(
         &std::env::var("DATABASE_URL").expect("No `DATABASE_URL` environment variable set."),
     ))
@@ -301,17 +300,20 @@ async fn main() {
         let mut data = client.data.write();
         data.insert::<PooledConnection>(pool);
     }
+    if let Ok(port) = std::env::var("PORT") {
+        std::thread::spawn(|| {
+            let mut rt = tokio::runtime::Runtime::new().unwrap();
+            let homepage = warp::any().map(|| {
+                "Hello World!"
+            });
+            rt.block_on(async move {
+                warp::serve(homepage)
+                    .run(([127, 0, 0, 1], port.parse().unwrap()))
+                    .await;
+            });
+        });
+    }
     if let Err(why) = client.start() {
         println!("Error starting the Discord client: {:?}", why);
-    }
-    if let Ok(port) = std::env::var("PORT") {
-        let homepage = warp::path("/").map(|| {
-            "Hello World!"
-        });
-        tokio::spawn(async move {
-            warp::serve(homepage)
-                .run(([127, 0, 0, 1], port.parse().unwrap()))
-                .await;
-        });
     }
 }
