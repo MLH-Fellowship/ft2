@@ -78,7 +78,12 @@ fn set_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
     let mut data = ctx.data.write();
     let pool = data.get_mut::<PooledConnection>().unwrap();
     let stripped_timezone = msg.content.replace("~set_timezone ", "");
-    let _: chrono_tz::Tz = stripped_timezone.as_str().parse().unwrap();
+    let _: chrono_tz::Tz = match stripped_timezone.as_str().parse() {
+        Ok(t) => t,
+        Err(_) => {
+            return Err(CommandError(format!("The supplied timezone {} isn't a valid timezone.", stripped_timezone)));
+        }
+    };
     use diesel::expression::exists;
     use diesel::prelude::*;
     use schema::user::dsl as user_dsl;
@@ -274,7 +279,10 @@ fn admin_check(ctx: &mut Context, msg: &Message, _: &mut Args, _: &CommandOption
     false.into()
 }
 
-fn main() {
+use warp::Filter;
+
+#[tokio::main]
+async fn main() {
     let pool: Pool = diesel::r2d2::Pool::new(diesel::r2d2::ConnectionManager::new(
         &std::env::var("DATABASE_URL").expect("No `DATABASE_URL` environment variable set."),
     ))
@@ -295,5 +303,15 @@ fn main() {
     }
     if let Err(why) = client.start() {
         println!("Error starting the Discord client: {:?}", why);
+    }
+    if let Ok(port) = std::env::var("PORT") {
+        let homepage = warp::path("/").map(|| {
+            "Hello World!"
+        });
+        tokio::spawn(async move {
+            warp::serve(homepage)
+                .run(([127, 0, 0, 1], port.parse().unwrap()))
+                .await;
+        });
     }
 }
