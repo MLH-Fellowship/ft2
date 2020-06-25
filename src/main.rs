@@ -50,11 +50,12 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
                 diesel::insert_into(schema::user::dsl::user).values(NewUser {
                     discord_id: mention.id.0 as i32,
                     timezone: &msg.content,
-                });
+                }).execute(&pool.get().unwrap());
             } else {
                 diesel::update(schema::user::dsl::user)
                     .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i32))
-                    .set(schema::user::dsl::timezone.eq(msg.clone().content));
+                    .set(schema::user::dsl::timezone.eq(msg.clone().content))
+                    .execute(&pool.get().unwrap());
             };
         }
     }
