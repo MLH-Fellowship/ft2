@@ -14,7 +14,7 @@ use serenity::framework::standard::macros::*;
 mod schema;
 
 use regex::Regex;
-use serenity::framework::standard::{CheckResult, CommandError, CommandOptions, CommandResult};
+use serenity::framework::standard::{CheckResult, CommandError, CommandOptions, CommandResult, HelpOptions, CommandGroup, help_commands};
 use serenity::model::channel::{Message, Reaction};
 
 lazy_static! {
@@ -47,10 +47,12 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
     for mention in &msg.mentions {
         if mention.bot {
             if !user_is_in_database(&mention.id.0, &pool) {
-                diesel::insert_into(schema::user::dsl::user).values(NewUser {
-                    discord_id: mention.id.0 as i32,
-                    timezone: &msg.content,
-                }).execute(&pool.get().unwrap());
+                diesel::insert_into(schema::user::dsl::user)
+                    .values(NewUser {
+                        discord_id: mention.id.0 as i32,
+                        timezone: &msg.content,
+                    })
+                    .execute(&pool.get().unwrap());
             } else {
                 diesel::update(schema::user::dsl::user)
                     .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i32))
@@ -81,7 +83,10 @@ fn set_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
     let _: chrono_tz::Tz = match stripped_timezone.as_str().parse() {
         Ok(t) => t,
         Err(_) => {
-            return Err(CommandError(format!("The supplied timezone {} isn't a valid timezone.", stripped_timezone)));
+            return Err(CommandError(format!(
+                "The supplied timezone {} isn't a valid timezone.",
+                stripped_timezone
+            )));
         }
     };
     use diesel::expression::exists;
@@ -267,6 +272,22 @@ impl EventHandler for Handler {
     }
 }
 
+#[help]
+#[individual_command_tip="Pass a specific command as a argument."]
+#[command_not_found_text="Could not find: {}"]
+#[max_levenshtein_distance(3)]
+#[indention_prefix="+"]
+fn my_help(
+    context: &mut Context,
+    msg: &Message,
+    args: Args,
+    help_options: &'static HelpOptions,
+    groups: &[&'static CommandGroup],
+    owners: HashSet<UserId>
+) -> CommandResult {
+    help_commands::with_embeds(context, msg, args, help_options, groups, owners)
+}
+
 #[check]
 #[name = "Admin"]
 #[check_in_help(true)]
@@ -281,6 +302,8 @@ fn admin_check(ctx: &mut Context, msg: &Message, _: &mut Args, _: &CommandOption
 }
 
 use warp::Filter;
+use std::collections::HashSet;
+use serenity::model::id::UserId;
 
 fn main() {
     let pool: Pool = diesel::r2d2::Pool::new(diesel::r2d2::ConnectionManager::new(
@@ -304,9 +327,7 @@ fn main() {
     if let Ok(port) = std::env::var("PORT") {
         std::thread::spawn(|| {
             let mut rt = tokio::runtime::Runtime::new().unwrap();
-            let homepage = warp::any().map(|| {
-                "Hello World!"
-            });
+            let homepage = warp::any().map(|| "Hello World!");
             rt.block_on(async move {
                 warp::serve(homepage)
                     .run(([127, 0, 0, 1], port.parse().unwrap()))
