@@ -69,20 +69,26 @@ struct NewUser<'a> {
 fn set_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
     let mut data = ctx.data.write();
     let pool = data.get_mut::<PooledConnection>().unwrap();
-    let _: chrono_tz::Tz = msg.content.as_str().parse().unwrap();
+    let stripped_timezone = msg.content.replace("~set_timezone ", "");
+    let _: chrono_tz::Tz = stripped_timezone.as_str().parse().unwrap();
     use diesel::expression::exists;
     use diesel::prelude::*;
     use schema::user::dsl as user_dsl;
     if !user_is_in_database(&msg.author.id.0, &pool) {
-        diesel::insert_into(schema::user::dsl::user).values(NewUser {
-            discord_id: msg.author.id.0 as i32,
-            timezone: &msg.content,
-        });
+        diesel::insert_into(schema::user::dsl::user)
+            .values(NewUser {
+                discord_id: msg.author.id.0 as i32,
+                timezone: &stripped_timezone,
+            })
+            .execute(&pool.get().unwrap())
+            .unwrap();
     } else {
         diesel::update(schema::user::dsl::user)
-            .set(schema::user::dsl::timezone.eq(msg.clone().content));
+            .set(schema::user::dsl::timezone.eq(msg.clone().content))
+            .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i32))
+            .execute(&pool.get().unwrap());
     };
-
+    msg.reply(&ctx, format!("Your timezone was successfully set to '{}'.", stripped_timezone));
     Ok(())
 }
 
@@ -122,6 +128,9 @@ enum PmAm {
 
 impl EventHandler for Handler {
     fn message(&self, ctx: Context, msg: Message) {
+        if msg.content.starts_with("~") {
+            return;
+        }
         use diesel::prelude::*;
         use schema::user::dsl::*;
         let mut data = ctx.data.write();
@@ -136,12 +145,21 @@ impl EventHandler for Handler {
                 msg.react(&ctx, "⏰");
             }
         } else {
-            msg.reply(&ctx, format!("Hi {} – you haven't set your timezone yet. DM this bot with a (canonical) timezone from this list https://en.wikipedia.org/wiki/List_of_tz_database_time_zones, e.g. `~timezone Europe/London`", msg.author.name)).unwrap();
+            if msg.author.bot {
+                return;
+            }
+            msg.reply(&ctx, format!("Hi {} – you haven't set your timezone yet. DM this bot with a (canonical) timezone from this list https://en.wikipedia.org/wiki/List_of_tz_database_time_zones, e.g. `~set_timezone Europe/London`", msg.author.name)).unwrap();
         }
     }
     fn reaction_add(&self, ctx: Context, add_reaction: Reaction) {
         use diesel::prelude::*;
         use schema::user::dsl as user_dsl;
+        if ctx.http.get_user(add_reaction.user_id.0).unwrap().bot {
+            return;
+        }
+        if add_reaction.emoji.as_data() != "⏰" {
+            return;
+        }
         let mut data = ctx.data.write();
         let pool = data.get_mut::<PooledConnection>().unwrap();
         let conn = pool.get().unwrap();
@@ -149,10 +167,13 @@ impl EventHandler for Handler {
             .http
             .get_message(add_reaction.channel_id.0, add_reaction.message_id.0)
             .unwrap();
-        let sending_user = user_dsl::user
+        let sending_user = match user_dsl::user
             .filter(user_dsl::discord_id.eq(message.author.id.0 as i32))
             .first::<User>(&conn)
-            .unwrap();
+        {
+            Ok(u) => u,
+            Err(_) => return,
+        };
         let reacting_user = match user_dsl::user
             .filter(user_dsl::discord_id.eq(add_reaction.user_id.0 as i32))
             .first::<User>(&conn)
@@ -166,9 +187,7 @@ impl EventHandler for Handler {
                         .create_dm_channel(&ctx)
                         .unwrap()
                         .send_message(&ctx, |c| {
-                            c.content(
-                                "Hi, you reacted to a message, but haven't set your timezone.",
-                            )
+                            c.content("Hi, you reacted to a message but haven't set your timezone.")
                         });
                 }
                 return;
@@ -253,7 +272,8 @@ fn main() {
     .expect("Error creating client");
     client.with_framework(
         serenity::framework::standard::StandardFramework::new()
-            .configure(|c| c.prefix("~").allow_dm(true)),
+            .configure(|c| c.prefix("~").allow_dm(true))
+            .group(&GENERAL_GROUP),
     );
     {
         let mut data = client.data.write();
