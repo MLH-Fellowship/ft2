@@ -1,0 +1,61 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: postgres-disk
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+    - ReadWriteOnce
+  gcePersistentDisk:
+    pdName: postgres-disk
+    fsType: ext4
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+        - matchExpressions:
+            - key: failure-domain.beta.kubernetes.io/zone
+              operator: In
+              values:
+                - europe-west2-a
+                - europe-west2-b
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ft2-deployment
+spec:
+  selector:
+    matchLabels:
+      app: ft2
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ft2
+    spec:
+      containers:
+        - name: ft2
+          image: taldridge/ft2
+          ports:
+            - containerPort: 80
+          env:
+            - name: DATABASE_URL
+              value: "postgres://localhost"
+            - name: DISCORD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: discord-token
+                  key: DISCORD_TOKEN
+        - name: postgres
+          image: library/postgres:13
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - mountPath: /usr/local/pgsql/data
+              name: postgres-disk
+      volumes:
+        - name: postgres-disk
+          gcePersistentDisk:
+            pdName: postgres-disk
+            fsType: ext4
