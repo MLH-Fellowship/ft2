@@ -19,6 +19,7 @@ use serenity::model::channel::{Message, Reaction};
 
 lazy_static! {
     static ref DATE_REGEX: Regex = Regex::new(r"(\d{2}|\d)+[.:]+(\d{2})+(pm|am)?").unwrap();
+    static ref TIMEZONE_REGEX: Regex = Regex::new(r"(\w+){1}\/(\w+){2}").unwrap();
 }
 
 #[group]
@@ -34,7 +35,12 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
             "You need to @mention at least one bot.",
         )));
     }
-    let timezone = msg.content.split("`").nth(1).unwrap();
+    let timezone = match TIMEZONE_REGEX.find(&msg.content) {
+        Some(t) => t.as_str(),
+        None => {
+            return Err(CommandError("That's not a valid timezone.".to_string()));
+        }
+    };
     let _: chrono_tz::Tz = timezone.parse().unwrap();
     let mut data = ctx.data.write();
     let pool = data.get_mut::<PooledConnection>().unwrap();
@@ -47,6 +53,7 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
                 });
             } else {
                 diesel::update(schema::user::dsl::user)
+                    .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i32))
                     .set(schema::user::dsl::timezone.eq(msg.clone().content));
             };
         }
@@ -88,7 +95,13 @@ fn set_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
             .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i32))
             .execute(&pool.get().unwrap());
     };
-    msg.reply(&ctx, format!("Your timezone was successfully set to '{}'.", stripped_timezone));
+    msg.reply(
+        &ctx,
+        format!(
+            "Your timezone was successfully set to '{}'.",
+            stripped_timezone
+        ),
+    );
     Ok(())
 }
 
