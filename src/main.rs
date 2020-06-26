@@ -248,10 +248,15 @@ impl EventHandler for Handler {
                 Ok(t) => *t,
                 Err(_) => return,
             };
-            let am_pm: PmAm = match &time[3] {
-                "am" => PmAm::Am,
-                "pm" => PmAm::Pm,
-                _ => PmAm::None,
+            let am_pm: PmAm = match &time.get(3) {
+                Some(nth) => {
+                    match nth.as_str() {
+                        "am" => PmAm::Am,
+                        "pm" => PmAm::Pm,
+                        _ => PmAm::None
+                    }
+                }
+                None => PmAm::None
             };
             if let PmAm::Am | PmAm::Pm = am_pm {
                 if hours > 12 {
