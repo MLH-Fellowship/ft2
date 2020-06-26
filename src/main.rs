@@ -173,6 +173,9 @@ impl EventHandler for Handler {
                 msg.react(&ctx, "⏰");
             }
         } else {
+            if msg.author.bot {
+                println!("A timezone hasn't been set for bot {}.", msg.author.name);
+            }
             if mentioned_dates.count() > 0 && !msg.author.bot {
                 msg.reply(&ctx, format!("Hi {} – you haven't set your timezone yet. DM this bot with a (canonical) timezone from this list https://en.wikipedia.org/wiki/List_of_tz_database_time_zones, e.g. `~set_timezone Europe/London`", msg.author.name)).unwrap();
             }
