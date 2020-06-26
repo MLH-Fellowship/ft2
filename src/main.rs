@@ -202,7 +202,10 @@ impl EventHandler for Handler {
             .first::<User>(&conn)
         {
             Ok(u) => u,
-            Err(_) => return,
+            Err(_) => {
+                add_reaction.channel_id.send_message(&ctx, |c| c.content("That user hasn't set their timezone."));
+                return
+            },
         };
         let reacting_user = match user_dsl::user
             .filter(user_dsl::discord_id.eq(add_reaction.user_id.0 as i64))
@@ -220,6 +223,14 @@ impl EventHandler for Handler {
                             c.content("Hi, you reacted to a message but haven't set your timezone.")
                         });
                 }
+                add_reaction
+                    .user(&ctx)
+                    .unwrap()
+                    .create_dm_channel(&ctx)
+                    .unwrap()
+                    .send_message(&ctx, |c| {
+                        c.content("There was a strange error when trying to send you this message.")
+                    });
                 return;
             }
         };
@@ -265,7 +276,7 @@ impl EventHandler for Handler {
             let receiving_message_user_time =
                 sending_user_message_time.with_timezone(&reacting_user_timezone);
             output.push(format!(
-                "The time {} was mentioned – in your timezone this was {}",
+                "The time `{}` was mentioned – in your timezone this is `{}`.",
                 sending_user_message_time, receiving_message_user_time
             ));
         }
