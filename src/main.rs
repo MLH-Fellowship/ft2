@@ -19,7 +19,7 @@ use serenity::model::channel::{Message, Reaction};
 
 lazy_static! {
     static ref DATE_REGEX: Regex = Regex::new(r"(\d{2}|\d)+[.:]+(\d{2})+(pm|am)?").unwrap();
-    static ref TIMEZONE_REGEX: Regex = Regex::new(r"(\w+){1}\/(\w+){2}").unwrap();
+    static ref TIMEZONE_REGEX: Regex = Regex::new(r"(\w+){1}/(\w+){1}").unwrap();
 }
 
 #[group]
