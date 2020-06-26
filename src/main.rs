@@ -163,16 +163,14 @@ impl EventHandler for Handler {
         let resulting_user: Result<User, diesel::result::Error> = user
             .filter(discord_id.eq(msg.author.id.0 as i32))
             .first::<User>(&conn);
+        let mentioned_dates = DATE_REGEX.captures_iter(&msg.content);
         if let Ok(found_user) = resulting_user {
-            let mentioned_dates = DATE_REGEX.captures_iter(&msg.content);
             if mentioned_dates.count() > 0 {
                 msg.react(&ctx, "⏰");
-            } else {
-                msg.reply(&ctx, format!("Hi {} – you haven't set your timezone yet. DM this bot with a (canonical) timezone from this list https://en.wikipedia.org/wiki/List_of_tz_database_time_zones, e.g. `~set_timezone Europe/London`", msg.author.name)).unwrap();
             }
         } else {
-            if msg.author.bot {
-                return;
+            if mentioned_dates.count() > 0 && !msg.author.bot {
+                msg.reply(&ctx, format!("Hi {} – you haven't set your timezone yet. DM this bot with a (canonical) timezone from this list https://en.wikipedia.org/wiki/List_of_tz_database_time_zones, e.g. `~set_timezone Europe/London`", msg.author.name)).unwrap();
             }
         }
     }
@@ -301,11 +299,10 @@ fn admin_check(ctx: &mut Context, msg: &Message, _: &mut Args, _: &CommandOption
     false.into()
 }
 
-use warp::Filter;
 use std::collections::HashSet;
 use serenity::model::id::UserId;
 
-fn main() {
+fn main() -> std::io::Result<()> {
     let pool: Pool = diesel::r2d2::Pool::new(diesel::r2d2::ConnectionManager::new(
         &std::env::var("DATABASE_URL").expect("No `DATABASE_URL` environment variable set."),
     ))
@@ -320,22 +317,20 @@ fn main() {
             .configure(|c| c.prefix("~").allow_dm(true))
             .group(&GENERAL_GROUP),
     );
+    if let Ok(port) = std::env::var("PORT") {
+        std::thread::spawn(move || {
+            println!("Starting TCP Listener on port {}.", &port);
+            let listener = std::net::TcpListener::bind(format!("0.0.0.0:{}", &port)).unwrap();
+            println!("Started TCP Listener on port {}.", &port);
+            for _ in listener.incoming() {}
+        });
+    }
     {
         let mut data = client.data.write();
         data.insert::<PooledConnection>(pool);
     }
-    if let Ok(port) = std::env::var("PORT") {
-        std::thread::spawn(|| {
-            let mut rt = tokio::runtime::Runtime::new().unwrap();
-            let homepage = warp::any().map(|| "Hello World!");
-            rt.block_on(async move {
-                warp::serve(homepage)
-                    .run(([127, 0, 0, 1], port.parse().unwrap()))
-                    .await;
-            });
-        });
-    }
     if let Err(why) = client.start() {
         println!("Error starting the Discord client: {:?}", why);
     }
+    Ok(())
 }
