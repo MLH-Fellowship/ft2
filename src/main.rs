@@ -47,6 +47,8 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
     for mention in &msg.mentions {
         if mention.bot {
             if !user_is_in_database(&mention.id.0, &pool) {
+                println!("Adding a bot with timezone id: `{}` to timezone: `{}`", msg.author.id.0
+                    as i32, timezone);
                 diesel::insert_into(schema::user::dsl::user)
                     .values(NewUser {
                         discord_id: mention.id.0 as i32,
@@ -54,6 +56,8 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
                     })
                     .execute(&pool.get().unwrap());
             } else {
+                println!("Updating bot timezone id: `{}` to timezone: `{}`", msg.author.id.0 as i32,
+                         timezone);
                 diesel::update(schema::user::dsl::user)
                     .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i32))
                     .set(schema::user::dsl::timezone.eq(msg.clone().content))
