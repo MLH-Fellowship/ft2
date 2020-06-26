@@ -5,7 +5,7 @@ create table if not exists "server" (
 );
 create table if not exists "user" (
     id serial primary key,
-    discord_id integer not null,
+    discord_id bigint not null,
     timezone text not null
 );
 create table if not exists "user_server" (

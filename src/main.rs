@@ -48,19 +48,19 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
         if mention.bot {
             if !user_is_in_database(&mention.id.0, &pool) {
                 println!("Adding a bot with timezone id: `{}` to timezone: `{}`", msg.author.id.0
-                    as i32, timezone);
+                    as i64, timezone);
                 diesel::insert_into(schema::user::dsl::user)
                     .values(NewUser {
-                        discord_id: mention.id.0 as i32,
-                        timezone: &msg.content,
+                        discord_id: mention.id.0 as i64,
+                        timezone: &timezone,
                     })
                     .execute(&pool.get().unwrap());
             } else {
-                println!("Updating bot timezone id: `{}` to timezone: `{}`", msg.author.id.0 as i32,
+                println!("Updating bot timezone id: `{}` to timezone: `{}`", msg.author.id.0 as i64,
                          timezone);
                 diesel::update(schema::user::dsl::user)
-                    .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i32))
-                    .set(schema::user::dsl::timezone.eq(msg.clone().content))
+                    .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i64))
+                    .set(schema::user::dsl::timezone.eq(timezone))
                     .execute(&pool.get().unwrap());
             };
         }
@@ -75,7 +75,7 @@ use serenity::framework::standard::Args;
 #[derive(Insertable)]
 #[table_name = "user"]
 struct NewUser<'a> {
-    discord_id: i32,
+    discord_id: i64,
     timezone: &'a str,
 }
 
@@ -99,15 +99,15 @@ fn set_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
     if !user_is_in_database(&msg.author.id.0, &pool) {
         diesel::insert_into(schema::user::dsl::user)
             .values(NewUser {
-                discord_id: msg.author.id.0 as i32,
+                discord_id: msg.author.id.0 as i64,
                 timezone: &stripped_timezone,
             })
             .execute(&pool.get().unwrap())
             .unwrap();
     } else {
         diesel::update(schema::user::dsl::user)
-            .set(schema::user::dsl::timezone.eq(msg.clone().content))
-            .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i32))
+            .set(schema::user::dsl::timezone.eq(&stripped_timezone))
+            .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i64))
             .execute(&pool.get().unwrap());
     };
     msg.reply(
@@ -125,7 +125,7 @@ fn user_is_in_database(user_id: &u64, pool: &Pool) -> bool {
     use diesel::prelude::*;
     use schema::user::dsl as user_dsl;
     diesel::select(exists::exists(
-        user_dsl::user.filter(user_dsl::discord_id.eq(*user_id as i32)),
+        user_dsl::user.filter(user_dsl::discord_id.eq(*user_id as i64)),
     ))
     .get_result::<bool>(&pool.get().unwrap())
     .unwrap()
@@ -144,7 +144,7 @@ struct Handler;
 #[derive(Queryable)]
 struct User {
     id: i32,
-    discord_id: i32,
+    discord_id: i64,
     timezone: String,
 }
 
@@ -165,7 +165,7 @@ impl EventHandler for Handler {
         let pool = data.get_mut::<PooledConnection>().unwrap();
         let conn = pool.get().unwrap();
         let resulting_user: Result<User, diesel::result::Error> = user
-            .filter(discord_id.eq(msg.author.id.0 as i32))
+            .filter(discord_id.eq(msg.author.id.0 as i64))
             .first::<User>(&conn);
         let mentioned_dates = DATE_REGEX.captures_iter(&msg.content);
         if let Ok(found_user) = resulting_user {
@@ -195,14 +195,14 @@ impl EventHandler for Handler {
             .get_message(add_reaction.channel_id.0, add_reaction.message_id.0)
             .unwrap();
         let sending_user = match user_dsl::user
-            .filter(user_dsl::discord_id.eq(message.author.id.0 as i32))
+            .filter(user_dsl::discord_id.eq(message.author.id.0 as i64))
             .first::<User>(&conn)
         {
             Ok(u) => u,
             Err(_) => return,
         };
         let reacting_user = match user_dsl::user
-            .filter(user_dsl::discord_id.eq(add_reaction.user_id.0 as i32))
+            .filter(user_dsl::discord_id.eq(add_reaction.user_id.0 as i64))
             .first::<User>(&conn)
         {
             Ok(u) => u,

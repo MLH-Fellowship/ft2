@@ -8,7 +8,7 @@ table! {
 table! {
     user (id) {
         id -> Int4,
-        discord_id -> Int4,
+        discord_id -> Int8,
         timezone -> Text,
     }
 }
@@ -24,4 +24,8 @@ table! {
 joinable!(user_server -> server (server_id));
 joinable!(user_server -> user (user_id));
 
-allow_tables_to_appear_in_same_query!(server, user, user_server,);
+allow_tables_to_appear_in_same_query!(
+    server,
+    user,
+    user_server,
+);
