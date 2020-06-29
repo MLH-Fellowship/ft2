@@ -21,7 +21,8 @@ use serenity::framework::standard::{
 use serenity::model::channel::{Message, Reaction};
 
 lazy_static! {
-    static ref DATE_REGEX: Regex = Regex::new(r"(\d{1,2})(?:[.:](\d{2}))? ?(pm|am)?").unwrap();
+    static ref DATE_REGEX: Regex =
+        Regex::new(r"(\d{1,2})(?:[.:](\d{2}))? ?(pm|am|PM|AM)?").unwrap();
     static ref TIMEZONE_REGEX: Regex = Regex::new(r"(\w+){1}/(\w+){1}").unwrap();
 }
 
