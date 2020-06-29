@@ -244,13 +244,6 @@ impl EventHandler for Handler {
                 Ok(t) => *t,
                 Err(_) => return,
             };
-            let minutes: u32 = match &time.get(2) {
-                Some(t) => match t.as_str().parse::<u32>() {
-                    Ok(t) => t,
-                    Err(_) => return,
-                },
-                None => 0,
-            };
             let am_pm: PmAm = match &time.get(3) {
                 Some(nth) => match nth.as_str() {
                     "am" => PmAm::Am,
@@ -258,6 +251,14 @@ impl EventHandler for Handler {
                     _ => PmAm::None,
                 },
                 None => PmAm::None,
+            };
+            let minutes: u32 = match &time.get(2) {
+                Some(t) => match t.as_str().parse::<u32>() {
+                    Ok(t) => t,
+                    Err(_) => return,
+                },
+                None if am_pm == PmAm::None => continue,
+                None => 0,
             };
             if let PmAm::Am | PmAm::Pm = am_pm {
                 if hours > 12 {
