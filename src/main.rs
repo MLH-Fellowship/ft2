@@ -14,7 +14,10 @@ use serenity::framework::standard::macros::*;
 mod schema;
 
 use regex::Regex;
-use serenity::framework::standard::{CheckResult, CommandError, CommandOptions, CommandResult, HelpOptions, CommandGroup, help_commands};
+use serenity::framework::standard::{
+    help_commands, CheckResult, CommandError, CommandGroup, CommandOptions, CommandResult,
+    HelpOptions,
+};
 use serenity::model::channel::{Message, Reaction};
 
 lazy_static! {
@@ -48,8 +51,10 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
     for mention in &msg.mentions {
         if mention.bot {
             if !user_is_in_database(&mention.id.0, &pool) {
-                println!("Adding a bot with timezone id: `{}` to timezone: `{}`", msg.author.id.0
-                    as i64, timezone);
+                println!(
+                    "Adding a bot with timezone id: `{}` to timezone: `{}`",
+                    msg.author.id.0 as i64, timezone
+                );
                 diesel::insert_into(schema::user::dsl::user)
                     .values(NewUser {
                         discord_id: mention.id.0 as i64,
@@ -57,8 +62,10 @@ fn set_bot_timezone(ctx: &mut Context, msg: &Message) -> CommandResult {
                     })
                     .execute(&pool.get().unwrap());
             } else {
-                println!("Updating bot timezone id: `{}` to timezone: `{}`", msg.author.id.0 as i64,
-                         timezone);
+                println!(
+                    "Updating bot timezone id: `{}` to timezone: `{}`",
+                    msg.author.id.0 as i64, timezone
+                );
                 diesel::update(schema::user::dsl::user)
                     .filter(schema::user::dsl::discord_id.eq(msg.author.id.0 as i64))
                     .set(schema::user::dsl::timezone.eq(timezone))
@@ -149,6 +156,7 @@ struct User {
     timezone: String,
 }
 
+#[derive(PartialEq)]
 enum PmAm {
     Pm,
     Am,
@@ -204,9 +212,11 @@ impl EventHandler for Handler {
         {
             Ok(u) => u,
             Err(_) => {
-                add_reaction.channel_id.send_message(&ctx, |c| c.content("That user hasn't set their timezone."));
-                return
-            },
+                add_reaction
+                    .channel_id
+                    .send_message(&ctx, |c| c.content("That user hasn't set their timezone."));
+                return;
+            }
         };
         let reacting_user = match user_dsl::user
             .filter(user_dsl::discord_id.eq(add_reaction.user_id.0 as i64))
@@ -297,17 +307,17 @@ impl EventHandler for Handler {
 }
 
 #[help]
-#[individual_command_tip="Pass a specific command as a argument."]
-#[command_not_found_text="Could not find: {}"]
+#[individual_command_tip = "Pass a specific command as a argument."]
+#[command_not_found_text = "Could not find: {}"]
 #[max_levenshtein_distance(3)]
-#[indention_prefix="+"]
+#[indention_prefix = "+"]
 fn my_help(
     context: &mut Context,
     msg: &Message,
     args: Args,
     help_options: &'static HelpOptions,
     groups: &[&'static CommandGroup],
-    owners: HashSet<UserId>
+    owners: HashSet<UserId>,
 ) -> CommandResult {
     help_commands::with_embeds(context, msg, args, help_options, groups, owners)
 }
@@ -325,8 +335,8 @@ fn admin_check(ctx: &mut Context, msg: &Message, _: &mut Args, _: &CommandOption
     false.into()
 }
 
-use std::collections::HashSet;
 use serenity::model::id::UserId;
+use std::collections::HashSet;
 
 fn main() -> std::io::Result<()> {
     let pool: Pool = diesel::r2d2::Pool::new(diesel::r2d2::ConnectionManager::new(
