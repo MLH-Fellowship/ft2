@@ -156,6 +156,7 @@ struct User {
     timezone: String,
 }
 
+#[derive(PartialEq)]
 enum PmAm {
     Pm,
     Am,
