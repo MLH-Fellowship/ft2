@@ -242,18 +242,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
-name = "ft2"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "chrono-tz",
- "diesel",
- "lazy_static",
- "regex",
- "serenity",
-]
-
-[[package]]
 name = "fuchsia-zircon"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1131,6 +1119,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "server"
+version = "0.1.0"
+
+[[package]]
 name = "sha-1"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1574,6 +1566,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0120db82e8a1e0b9fb3345a539c478767c0048d842860994d96113d5b667bd69"
 dependencies = [
  "winapi 0.3.8",
+]
+
+[[package]]
+name = "worker"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "chrono-tz",
+ "diesel",
+ "lazy_static",
+ "regex",
+ "serenity",
 ]
 
 [[package]]
