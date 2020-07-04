@@ -21,7 +21,8 @@ use serenity::framework::standard::{
 use serenity::model::channel::{Message, Reaction};
 
 lazy_static! {
-    static ref DATE_REGEX: Regex = Regex::new(r"(\d{2}|\d)+[.:]+(\d{2})+(pm|am)?").unwrap();
+    static ref DATE_REGEX: Regex =
+        Regex::new(r"(\d{1,2})(?:[.:](\d{2}))? ?(pm|am|PM|AM)?").unwrap();
     static ref TIMEZONE_REGEX: Regex = Regex::new(r"(\w+){1}/(\w+){1}").unwrap();
 }
 
@@ -155,6 +156,7 @@ struct User {
     timezone: String,
 }
 
+#[derive(PartialEq)]
 enum PmAm {
     Pm,
     Am,
@@ -253,10 +255,6 @@ impl EventHandler for Handler {
                 Ok(t) => *t,
                 Err(_) => return,
             };
-            let minutes: u32 = match &time[2].parse() {
-                Ok(t) => *t,
-                Err(_) => return,
-            };
             let am_pm: PmAm = match &time.get(3) {
                 Some(nth) => match nth.as_str() {
                     "am" => PmAm::Am,
@@ -264,6 +262,14 @@ impl EventHandler for Handler {
                     _ => PmAm::None,
                 },
                 None => PmAm::None,
+            };
+            let minutes: u32 = match &time.get(2) {
+                Some(t) => match t.as_str().parse::<u32>() {
+                    Ok(t) => t,
+                    Err(_) => return,
+                },
+                None if am_pm == PmAm::None => continue,
+                None => 0,
             };
             if let PmAm::Am | PmAm::Pm = am_pm {
                 if hours > 12 {
