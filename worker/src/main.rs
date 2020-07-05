@@ -22,7 +22,7 @@ use serenity::model::channel::{Message, Reaction};
 
 lazy_static! {
     static ref DATE_REGEX: Regex =
-        Regex::new(r"(\d{1,2})(?:[.:](\d{2}))? ?(pm|am|PM|AM)?").unwrap();
+        Regex::new(r"\b(\d{2})(?:[.:](\d{2}))(pm|am|PM|AM)?\b").unwrap();
     static ref TIMEZONE_REGEX: Regex = Regex::new(r"(\w+){1}/(\w+){1}").unwrap();
 }
 
@@ -361,4 +361,23 @@ fn main() -> std::io::Result<()> {
         println!("Error starting the Discord client: {:?}", why);
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::DATE_REGEX;
+    #[test]
+    fn test_date_regex_captures_valid() {
+        assert_eq!(DATE_REGEX.captures_iter("10:30am").count(), 1);
+        assert_eq!(DATE_REGEX.captures_iter("13:50 to 15:30").count(), 2);
+        assert_eq!(DATE_REGEX.captures_iter("13:50am to 15:30PM").count(), 2);
+        assert_eq!(DATE_REGEX.captures_iter("13:50AM to 16:30pm or 15:40").count(), 3);
+    }
+    #[test]
+    fn test_date_regex_ignores_invalid() {
+        assert_eq!(DATE_REGEX.captures_iter("hello world").count(), 0);
+        assert_eq!(DATE_REGEX.captures_iter("in 135").count(), 0);
+        assert_eq!(DATE_REGEX.captures_iter("abc14:50defg").count(), 0);
+        assert_eq!(DATE_REGEX.captures_iter("pm+a").count(), 0);
+    }
 }
