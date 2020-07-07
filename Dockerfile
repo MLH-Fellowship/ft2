@@ -4,9 +4,9 @@ FROM rust:1.44.0
 WORKDIR /usr/src/app
 COPY . .
 
-RUN cargo install --path .
+RUN cd worker && cargo install --path .
 
 ENV PORT 8080
 
 # Run the web service on container startup.
-CMD ["ft2"]
+CMD ["worker"]
