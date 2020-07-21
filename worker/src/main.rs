@@ -22,7 +22,7 @@ use serenity::model::channel::{Message, Reaction};
 
 lazy_static! {
     static ref DATE_REGEX: Regex =
-        Regex::new(r"\b(\d{2})(?:[.:](\d{2}))(pm|am|PM|AM)?\b").unwrap();
+        Regex::new(r"\b([0-9]|0[0-9]|1[0-9]|2[0-3]):([0-5][0-9])\s*([AaPp][Mm])?\b").unwrap();
     static ref TIMEZONE_REGEX: Regex = Regex::new(r"(\w+){1}/(\w+){1}").unwrap();
 }
 
